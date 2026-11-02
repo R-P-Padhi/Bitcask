@@ -1,0 +1,9 @@
+[package]
+name = "bitcask-lite"
+version = "0.3.0"
+edition = "2021"
+rust-version = "1.89"
+description = "A compact, dependency-free append-only key-value store"
+license = "MIT"
+
+[dependencies]
