@@ -214,7 +214,7 @@ fn deterministic_operations_match_a_reference_map() -> io::Result<()> {
     for step in 0..1_000 {
         seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
         let key = ((seed >> 32) % 80).to_le_bytes().to_vec();
-        if seed % 5 == 0 {
+        if seed.is_multiple_of(5) {
             assert_eq!(db.delete(&key)?, model.remove(&key).is_some());
         } else {
             let value = seed.to_le_bytes().to_vec();
