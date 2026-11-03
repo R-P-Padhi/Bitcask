@@ -2,9 +2,9 @@
 
 ## 0.3.0 — Read, write and compaction performance
 
-**Requires Rust 1.89 or newer; older compiler versions are unsupported.** Rust 2021 edition; standard library only; no third-party crates, `unsafe`, or unchecked `unwrap` in the engine. Linux, macOS and WSL; no native Windows implementation.
+**Requirements:** Rust 1.89+, Linux/macOS/WSL. Rust 2021 edition, standard library only; no third-party crates or `unsafe` code. Native Windows is not supported.
 
-### Seven improvements
+### Changes
 
 1. **Direct segment index:** `HashMap<segment ID, position>` replaces repeated linear segment searches; index updates and segment rotation maintain the mapping.
 2. **Sequential compaction:** live locations are sorted by physical segment order and offset before rewriting, reducing random reads; records retain CRC validation.
@@ -18,7 +18,7 @@
 
 ### Code size
 
-Physical lines including blank lines and comments, from `wc -l`; no generated build files.
+Line counts at the v0.3.0 release, including blanks and comments (`wc -l`); later benchmark examples are not included.
 
 | Rust files | v0.2 | v0.3 | Change |
 | --- | ---: | ---: | ---: |
@@ -31,7 +31,7 @@ Physical lines including blank lines and comments, from `wc -l`; no generated bu
 
 Executed locally with **rustc 1.89.0**: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all-targets` (**28/28 passed**), `cargo test --release --all-targets` (**28/28 passed**), `cargo build --release`, `cargo run --example basic`, `cargo run --example rotation`, and `cargo run --release --example bench`. Nine integration cases were added for batches, concurrent readers, asynchronous compaction and later writes, manifest replay order/duplicates, automatic-compaction gating, no-op compaction, accounting and abandoned-temp cleanup.
 
-**One local release smoke benchmark:** 20,000 group-synced inserts ~196k/s; 20,000 random reads ~353k/s; full rewrite ~80.7 ms for 1.92 MB of live records. These values are environment-specific, not a guarantee. The benchmark has no stale bytes, so its compaction step does not demonstrate space savings.
+**Release-time smoke benchmark:** 20,000 inserts with one sync, ~196k/s; 20,000 random reads, ~353k/s; full rewrite, ~80.7 ms for 1.92 MB of live records. That run had no stale records, so it did not measure space reclamation. See [PERFORMANCE.md](PERFORMANCE.md) for the newer multi-workload results.
 
 ## 0.2.0 — Segmented storage
 

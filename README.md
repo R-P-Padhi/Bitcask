@@ -1,6 +1,6 @@
-# Bitcask Lite
+# Bitcask
 
-Bitcask Lite is a small, append-only key-value store written in Rust, with no external dependencies. It keeps an in-memory index of keys and writes records to numbered log segments. Old records are reclaimed through compaction.
+A small append-only key-value store written in Rust, without external dependencies. Keys are indexed in memory; values are stored in numbered log segments. Compaction removes overwritten and deleted records.
 
 **Rust 1.89+ required.** Older Rust versions are unsupported and will not build this crate: the minimum version is enforced in `Cargo.toml`, and the standard-library file locking API requires 1.89. Linux, macOS, and WSL are supported; native Windows is not.
 
@@ -98,12 +98,12 @@ fn main() -> std::io::Result<()> {
 
 The 28 integration tests cover persistence, overwrite/delete, binary values, partial writes, CRC corruption, locking, rotation, migration, malformed manifests, background compaction with concurrent updates, parallel readers, group writes, file cleanup, and storage counters. A reference-map test checks 1,000 operations. Recovery tests simulate truncated files, not a physical power cut.
 
-`cargo run --release --example bench` prints write, random-read, and full-compaction timings using 20,000 records; results depend on the machine and filesystem. It is a small reproducible smoke benchmark, not a standardized throughput claim.
+`cargo run --release --example bench` is a quick test of 20,000 writes, random reads, and compaction. Times depend on the machine and filesystem.
 
-For 22 core performance measurements plus additional recovery, compaction, concurrency, durability, and write-amplification tests, see [PERFORMANCE.md](PERFORMANCE.md) and [the 103-metric dataset](PERFORMANCE_DATA.csv). Run `cargo run --release --example perf` on Linux to repeat the measurements.
+For the detailed measurements and test setup, see [PERFORMANCE.md](PERFORMANCE.md). The raw numbers are in [PERFORMANCE_DATA.csv](PERFORMANCE_DATA.csv). Run `cargo run --release --example perf` on Linux to repeat the benchmark.
 
 For development, run `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, and `cargo test --all-targets`.
 
-GitHub Actions checks the project on Linux and macOS with Rust 1.89 and stable. Bug reports should include the OS, Rust version, and a minimal example that reproduces the issue.
+GitHub Actions checks Linux and macOS builds with Rust 1.89 and stable.
 
 The project is licensed under MIT. See [LICENSE](LICENSE). More details: [changelog](CHANGELOG.md), [disk format](FORMAT.md), [file sync and locking](https://doc.rust-lang.org/std/fs/struct.File.html), and [rename semantics](https://doc.rust-lang.org/std/fs/fn.rename.html).
