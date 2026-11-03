@@ -1,0 +1,35 @@
+name: Reproducible performance benchmarks
+
+on:
+  push:
+    branches: [main, perf-benchmarks-2026]
+    paths:
+      - examples/perf.rs
+      - .github/workflows/perf.yml
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    name: Linux release benchmark (Rust 1.89)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.89.0"
+          components: rustfmt, clippy
+      - name: Format benchmark for verification
+        run: |
+          cargo fmt --all
+          echo 'PERF_FORMAT_BEGIN'
+          cat examples/perf.rs
+          echo 'PERF_FORMAT_END'
+      - name: Check all-target Clippy
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Run tests
+        run: cargo test --all-targets
+      - name: Build optimized benchmark
+        run: cargo build --release --example perf
+      - name: Measure storage workloads and runner resources
+        run: /usr/bin/time -v ./target/release/examples/perf
