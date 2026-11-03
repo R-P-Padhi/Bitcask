@@ -2,9 +2,9 @@
 
 **Environment:** GitHub-hosted Ubuntu Linux (x86_64), AMD EPYC 7763 host CPU, **4 available parallel workers**, Rust **1.89.0**, optimized release build, standard-library-only benchmark. **Date:** 2026-11-03 (UTC). **Source:** [3-trial GitHub Actions benchmark](https://github.com/R-P-Padhi/Bitcask/actions/runs/41585782358) and [4-job CI validation](https://github.com/R-P-Padhi/Bitcask/actions/runs/41585782374).
 
-**Method:** Three complete runs on one GitHub Actions runner; values below are **medians**. 103 instrumented outputs per run. Each phase creates a separate database under the runner's temporary directory; data is removed after its phase. Keys are 8 bytes and values 64 bytes unless specified. Durability, segment limits, and key counts vary deliberately by phase. Timed operations include library and filesystem costs; no network service is involved. Results are **runner-specific**, not hardware-independent performance guarantees.
+**Method:** Three runs on one Ubuntu runner; tables show the median. Each run printed 103 measurements. Unless noted, keys were 8 bytes and values 64 bytes. Every workload used a fresh temporary database, with its durability and segment settings specified in the table. Timings include storage-engine and filesystem work, so results will vary between machines.
 
-## 22 core measurements
+## Results
 
 | # | Metric | Median result | Workload / interpretation |
 | ---: | --- | --- | --- |
@@ -31,7 +31,7 @@
 | 21 | Parallel read scalability | 1t 234,279; 2t 237,157; 4t 189,182; 8t 207,797; 16t 213,274 ops/s | 6,000 GETs/thread with spawn/join in timing; ~30 segments versus 16-entry locked file cache; not isolated read scaling |
 | 22 | Segment rotation latency spikes | normal put p99 8.62 µs; rotation put p99 7,157.37 µs | 240 segments using deliberately tiny 512-byte rotation limit |
 
-## Additional metrics and correctness checks
+## Other measurements
 
 | Metric | Median measurement |
 | --- | --- |
@@ -48,14 +48,14 @@
 | Compacted data checked against expected state | Passed all 3 runs |
 | Recovery checked against expected final key/value | Passed at 2k / 10k / 40k keys in all 3 runs |
 
-**Raw dataset:** [PERFORMANCE_DATA.csv](PERFORMANCE_DATA.csv) contains all **103 metric names**, units, each of the three raw results, median, minimum, and maximum. The benchmark itself is [examples/perf.rs](examples/perf.rs); the reproducible automation is [.github/workflows/perf.yml](.github/workflows/perf.yml).
+All 103 measurements, including the three trial values and their median, minimum and maximum, are in [PERFORMANCE_DATA.csv](PERFORMANCE_DATA.csv). See [examples/perf.rs](examples/perf.rs) for the benchmark and [.github/workflows/perf.yml](.github/workflows/perf.yml) for the GitHub Actions job.
 
-## Main observations
+## Findings
 
-- **Durability choice dominates short writes.** Syncing each individual put is substantially slower than amortizing sync cost over a batch. `put_batch()` is **not** an atomic transaction.
-- **Compaction actively reclaims space.** The stale-heavy benchmark removed **80.33%** of on-disk log bytes in about **65 ms**. The benchmark also checks the post-compaction key state.
+- **Sync cost:** Syncing each put is much slower than syncing a batch. `put_batch()` groups writes but does not make them an atomic transaction.
+- **Compaction:** With three overwrite passes and 3,000 deletes, it reclaimed 80.33% of log space in roughly 65 ms. The remaining keys were checked afterward.
 - **Concurrent random reads did not scale linearly.** `get(&self)` shares the database and uses positional `read_at` without a shared file cursor, but the 16-entry sealed-file cache is protected by a `Mutex`. Cache-miss `File::open` happens while that mutex is held; the record read itself happens after release. The workload uses ~30 segments, 6,000 GETs per thread and includes thread creation/join in each timed trial, so it does **not** isolate read-side lock contention, storage/cache effects or CPU scaling. The 4-worker runner is context, **not** a proven explanation for the results.
-- **Foreground latency rose while background compaction was active.** Median-of-trials p99 increased from **8.81 to 10.77 µs**, about **1.223×**. That is a measured trade-off, not a fundamental correctness flaw.
+- **Background compaction:** Foreground p99 latency rose from 8.81 to 10.77 µs (1.223×) in this workload.
 - **Rotation creates tail-latency spikes.** The 512-byte test segment is intentionally extreme; the normal default is 8 MiB. Rotation results should not be extrapolated to default settings.
 - **Replay scales with logged bytes**, as expected for an append-only recovery scan. Partial active-tail recovery and process-exit persistence passed the tested scenarios.
 
@@ -72,4 +72,4 @@ cargo +1.89.0 build --release --example perf
 
 Linux-specific `/proc/self/io`, `/proc/self/status`, and `/proc/self/fd` counters are optional. The storage engine itself supports Linux, macOS, and WSL (not native Windows). Rust versions **below 1.89 are unsupported**.
 
-**Measurement limits:** Hosted runners have unpinned CPU/disk conditions. No external cache drop is performed: the first pass after reopening is **not** a cold-cache measurement. Process `write_bytes` approximates write activity attributed to the benchmark, **not** NAND-level amplification or device endurance. The benchmark's process-exit test does not simulate power loss; the partial-tail test is synthetic. Memory includes the entire process, not just the in-memory index. Three trials characterize local variation but are not a comprehensive statistical confidence interval.
+**Limits:** GitHub runners share hardware, so throughput and latency vary. Reopening does not clear the OS page cache; the first read pass is not a cold-cache test. `/proc/self/io` reports process writes, not device-level write amplification. The exit and partial-tail checks do not simulate a physical power cut. Memory figures cover the whole process, and three trials are not enough to establish confidence intervals.
