@@ -100,6 +100,8 @@ The 28 integration tests cover persistence, overwrite/delete, binary values, par
 
 `cargo run --release --example bench` prints write, random-read, and full-compaction timings using 20,000 records; results depend on the machine and filesystem. It is a small reproducible smoke benchmark, not a standardized throughput claim.
 
+For 22 core performance measurements plus additional recovery, compaction, concurrency, durability, and write-amplification tests, see [PERFORMANCE.md](PERFORMANCE.md) and [the 103-metric dataset](PERFORMANCE_DATA.csv). Run `cargo run --release --example perf` on Linux to repeat the measurements.
+
 For development, run `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, and `cargo test --all-targets`.
 
 GitHub Actions checks the project on Linux and macOS with Rust 1.89 and stable. Bug reports should include the OS, Rust version, and a minimal example that reproduces the issue.
