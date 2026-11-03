@@ -28,7 +28,7 @@
 | 18 | Recovery / startup cost | 2k: 3.64 ms; 10k: 17.59 ms; 40k: 74.97 ms | Reopen and replay committed logs |
 | 19 | Recovery replay throughput | 2k: 548,819; 40k: 533,561 records/s | 40k log ≈3.84 MB of encoded records |
 | 20 | Memory footprint | 20k-key checkpoint: 6,404 KiB; complete program peak: 9,940 KiB | 9,940 KiB is median /usr/bin/time RSS; not index-only memory |
-| 21 | Parallel read scalability | 1t 234,279; 2t 237,157; 4t 189,182; 8t 207,797; 16t 213,274 ops/s | 4 available hardware threads reported; throughput did not scale linearly |
+| 21 | Parallel read scalability | 1t 234,279; 2t 237,157; 4t 189,182; 8t 207,797; 16t 213,274 ops/s | 6,000 GETs/thread with spawn/join in timing; ~30 segments versus 16-entry locked file cache; not isolated read scaling |
 | 22 | Segment rotation latency spikes | normal put p99 8.62 µs; rotation put p99 7,157.37 µs | 240 segments using deliberately tiny 512-byte rotation limit |
 
 ## Additional metrics and correctness checks
@@ -54,7 +54,7 @@
 
 - **Durability choice dominates short writes.** Syncing each individual put is substantially slower than amortizing sync cost over a batch. `put_batch()` is **not** an atomic transaction.
 - **Compaction actively reclaims space.** The stale-heavy benchmark removed **80.33%** of on-disk log bytes in about **65 ms**. The benchmark also checks the post-compaction key state.
-- **Concurrent random reads do not scale linearly here.** Throughput at 4, 8, and 16 readers was below the one- or two-reader results. Filesystem work, repeated validation, shared caching and the host's 4 available workers are possible contributors; this workload does **not** isolate which factor dominates.
+- **Concurrent random reads did not scale linearly.** `get(&self)` shares the database and uses positional `read_at` without a shared file cursor, but the 16-entry sealed-file cache is protected by a `Mutex`. Cache-miss `File::open` happens while that mutex is held; the record read itself happens after release. The workload uses ~30 segments, 6,000 GETs per thread and includes thread creation/join in each timed trial, so it does **not** isolate read-side lock contention, storage/cache effects or CPU scaling. The 4-worker runner is context, **not** a proven explanation for the results.
 - **Foreground latency rose while background compaction was active.** Median-of-trials p99 increased from **8.81 to 10.77 µs**, about **1.223×**. That is a measured trade-off, not a fundamental correctness flaw.
 - **Rotation creates tail-latency spikes.** The 512-byte test segment is intentionally extreme; the normal default is 8 MiB. Rotation results should not be extrapolated to default settings.
 - **Replay scales with logged bytes**, as expected for an append-only recovery scan. Partial active-tail recovery and process-exit persistence passed the tested scenarios.
