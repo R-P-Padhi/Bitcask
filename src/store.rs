@@ -73,6 +73,8 @@ struct CompactionTask {
     worker: JoinHandle<io::Result<Prepared>>,
 }
 
+// Sealed-file LRU metadata and cache-miss opens are serialized by a Mutex.
+// The actual positional record read is performed after that mutex is released.
 #[derive(Default)]
 struct FileCache {
     files: HashMap<u64, Arc<File>>,
