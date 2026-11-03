@@ -72,7 +72,7 @@ fn main() -> std::io::Result<()> {
 - **Read:** hash lookup → direct segment lookup → positional read → verify record → return value without shifting its buffer.
 - **Open:** load the manifest → replay listed segments in order → latest record wins; tombstones remove keys.
 - **Compact:** sort live record locations by disk order and rewrite sequentially. Automatic compaction prepares sealed segments on a worker while new writes continue; publication is atomic via the manifest.
-- **Cost:** expected O(1) key/segment lookups; reads/writes O(record bytes) plus filesystem costs; reopen O(total log bytes). RAM holds live keys/locations. A 16-entry LRU cache bounds retained sealed-file handles; cold reads may reopen a file.
+- **Cost:** expected O(1) key/segment lookups; reads/writes O(record bytes) plus filesystem costs; reopen O(total log bytes). RAM holds live keys/locations. A 16-entry LRU bounds retained sealed-file handles. Its `Mutex` serializes LRU bookkeeping **and cache-miss file opens**; the positional record read itself happens after releasing that lock. Parallel reads are safe, but a random workload crossing more segments than cache slots may contend and reopen files.
 
 ## Recovery
 
